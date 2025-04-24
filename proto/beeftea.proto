@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package beeftea;
+
+option go_package = "./types";
+
+// External RPCs for clients
+
+service ExternalRPC {
+    rpc Put(PutReq) returns (PutRes);
+    rpc Get(GetReq) returns (GetRes);
+}
+
+message PutReq {
+    string id = 1;
+    KeyValue kv = 2;
+}
+
+message PutRes {
+    string id = 1;
+}
+
+message GetReq {
+    string key = 1;
+}
+
+message GetRes {
+    KeyValue kv = 1;
+}
+
+// Consensus RPCs for internal node-to-node communication
+
+service ConsensusRPC {
+    rpc Send(Envelope) returns (Empty);
+}
+
+message Empty {}
+
+message Envelope {
+    Message msg = 1;
+    uint32 node_index = 2;
+    bytes sig = 3;
+}
+
+message Message {
+    oneof type {
+        Proposal proposal = 1;
+        Prepare prepare = 2;
+        Commit commit = 3;
+    }
+}
+
+message Proposal {
+    repeated PutReq reqs = 1;
+    bytes proposer_proof = 2;
+    uint32 proposer_index = 3;
+}
+
+message Prepare {
+    // the digest of the Message the proposal is in
+    // aka the digest over which Envelope.sig is signed
+    bytes proposal_digest = 1;
+}
+
+message Commit {
+    bytes proposal_digest = 1;
+}
+
+message KeyValue {
+    string key = 1;
+    string val = 2;
+}
