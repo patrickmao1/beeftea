@@ -24,8 +24,10 @@ func (s *Service) startExternalRPC() {
 }
 
 func (s *Service) Put(ctx context.Context, req *types.PutReq) (*types.PutRes, error) {
-	//TODO implement me
-	panic("implement me")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.reqs[req.Id] = req
+	return &types.PutRes{Id: req.Id}, nil
 }
 
 func (s *Service) Get(ctx context.Context, req *types.GetReq) (*types.GetRes, error) {
