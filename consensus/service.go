@@ -16,6 +16,7 @@ type roundState struct {
 	prevProposerProof []byte
 	seed              []byte
 	minProposal       *types.Proposal
+	proposals
 	prepares          []*types.Prepare
 	commits           []*types.Commit
 }
@@ -143,43 +144,55 @@ func (s *Service) propose() {
 
 // prepare implements phase 2: select the minimal valid proposal
 // and broadcast a Prepare once it has seen 2f+1 matching proposals.
-func (s *Service) prepare() {
+// prepare broadcasts a Prepare for the given proposal digest.
+// prepare implements phase 2: take the chosen minProposal, compute its digest, and broadcast a Prepare message.
+// It assumes s.minProposal is non-nil and has been set by handlePrepare.
+func (s *Service) prepare() error {
     s.mu.Lock()
     defer s.mu.Unlock()
-    prepareMsg := &types.Message{Type: &types.Message_Prepare{
-        Prepare: &types.Prepare{ProposalDigest: fullDigest},
-    }}
-    s.Broadcast(prepareMsg)
-    s.prepares = append(s.prepares, &types.Prepare{ProposalDigest: fullDigest})
+
+    if s.minProposal == nil {
+        return errors.New("no minProposal to prepare")
+    }
+
+    // compute full hash of minProposal
+    raw, err := proto.Marshal(s.minProposal)
+    if err != nil {
+        return err
+    }
+    sum := blake2b.Sum256(raw)
+    digest := sum[:] // full 32-byte digest
+
+    // broadcast Prepare message carrying full digest
+    pr := &types.Prepare{ProposalDigest: digest}
+    msg := &types.Message{Type: &types.Message_Prepare{Prepare: pr}}
+    s.Broadcast(msg)
+
+    // track our local prepare for later commit
+    s.prepares = append(s.prepares, pr)
+    key := binary.BigEndian.Uint64(digest[:8])
+    log.Infof("round %d: sent Prepare for digest %x", s.round(), key)
+    return nil
 }
 
-func (s *Service) commit() {
-	//if handleprepare is true
-	s.mu.Lock()
+
+// commit broadcasts a Commit for the given proposal digest.
+func (s *Service) commit(proposalDigest []byte) error {
+    s.mu.Lock()
     defer s.mu.Unlock()
-	quorum := 2*int(s.F) + 1
 
-	//uses the first 8 bytes of ProposalDigest as the key
-	counts := make(map[uint64] int)
+    if len(proposalDigest) == 0 {
+        return errors.New("empty proposal digest")
+    }
 
-	for _, p := range s.prepares {
-		if p == nil || len(p.ProposalDigest) < 8{
-			continue
-		}
-		//interpreting the first 8 bytes as unit64
-		key := binary.BigEndian.Unit64(p.ProposalDigest[:8])
-		counts[key]++
+    cm := &types.Commit{ProposalDigest: proposalDigest}
+    msg := &types.Message{Type: &types.Message_Commit{Commit: cm}}
+    s.Broadcast(msg)
 
-		//check to see if quorum is reached and send Commit
-
-		if counts[key] >= quorum {
-			commit := &types.Commit{ ProposalDigest: p.ProposalDigest }
-			msg := &types.Message{ Type: &types.Message_Commit{ Commit: commit }}
-			s.Broadcast(msg)
-			s.commits = append(s.commits, &types.Commit{ProposalDigest: p.ProposalDigest})
-		}
-	}
-
+    // track local commit
+    s.commits = append(s.commits, cm)
+    log.Infof("round %d: sent Commit for digest %x", s.round(), binary.BigEndian.Uint64(proposalDigest[:8]))
+    return nil
 }
 
 func (s *Service) commitLocal() {
