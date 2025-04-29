@@ -208,12 +208,29 @@ func (s *Service) commitLocal(digest []byte) {
         if bytes.Equal(HashProposal(proposal), digest) {
             for _, req := range proposal.Reqs {
                 s.kvStore[req.Key] = req.Value
+				// remove it from the pending reqs
+				delete(s.reqs, req.Id)
             }
             break
         }
 		
 
     }
+}
+// reset clears all round‐specific state.
+func (s *Service) reset() {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    // keep prevProposerProof; new seed will be set in initRound
+    s.seed = nil
+    s.minProposal = nil
+    s.proposals = nil           // drop all collected proposals
+    s.prepares = nil            // drop prepare records
+    s.commits = nil             // drop commit records
+    s.prepared = false          // clear flags
+    s.committed = false
+    s.inMsgs = make(map[string]*types.Message)
+    s.outMsgs = make(map[string]*types.Message)
 }
 
 func (s *Service) round() uint32 {
