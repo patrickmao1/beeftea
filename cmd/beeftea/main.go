@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/patrickmao1/beeftea/consensus"
 	"github.com/patrickmao1/beeftea/crypto"
 	"github.com/patrickmao1/beeftea/types"
@@ -15,12 +14,13 @@ func main() {
 		RoundDuration:     4 * time.Second,
 		ProposalDuration:  1 * time.Second,
 		ProposalThreshold: computeThreshold(5),
-	}
-	for i := 1; i <= 5; i++ {
-		config.Peers = append(config.Peers, &types.Peer{
-			URL: fmt.Sprintf("172.16.0.%d:8080", i),
-			Key: crypto.GenKeyDeterministic(int64(i)),
-		})
+		Peers: []*types.Peer{
+			{URL: "172.16.0.1:9090", Key: crypto.UnmarshalHex("c71e183d51e9fae1d4fc410ca16a17a3a89da8e105b0e108576e2a77133f87b0")},
+			{URL: "172.16.0.2:9090", Key: crypto.UnmarshalHex("26c65dc72d016ebe50a5751c258d8ff3ddc3da40b5dcf7ac638619e041119b71")},
+			{URL: "172.16.0.3:9090", Key: crypto.UnmarshalHex("6a7e2b2ee79a8444d489c900f0c32bd944c88530882c9348b0d477b825773956")},
+			{URL: "172.16.0.4:9090", Key: crypto.UnmarshalHex("64d691d9af74ff28b23f38e49bedbae5aa5298933c477d60173a3990eb263481")},
+			{URL: "172.16.0.5:9090", Key: crypto.UnmarshalHex("376bb541ff3c913ea6b07cc0c405b991d354e140b4c3b8908884b84ef1475984")},
+		},
 	}
 	F: 					(unit32(len(peersList)+1)-1) /3, //this solves for f using pbft f = n-1/3
 	s := consensus.NewService(config)

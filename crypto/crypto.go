@@ -4,9 +4,9 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"encoding/hex"
 	"golang.org/x/crypto/blake2b"
 	"math/big"
-	mathrand "math/rand"
 )
 
 func VRF(key *ecdsa.PrivateKey, seed []byte) (rng uint32, proof []byte) {
@@ -19,9 +19,8 @@ func RngFromProof(proof []byte) uint32 {
 	return uint32(new(big.Int).SetBytes(rng[:32]).Uint64())
 }
 
-func GenKeyDeterministic(seed int64) *ecdsa.PrivateKey {
-	rng := mathrand.New(mathrand.NewSource(seed))
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rng)
+func GenKey() *ecdsa.PrivateKey {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		panic(err)
 	}
@@ -40,4 +39,27 @@ func Sign(key *ecdsa.PrivateKey, msg []byte) []byte {
 func Verify(key *ecdsa.PublicKey, msg []byte, sig []byte) bool {
 	hash := blake2b.Sum256(msg)
 	return ecdsa.VerifyASN1(key, hash[:], sig)
+}
+
+func Marshal(key *ecdsa.PrivateKey) []byte {
+	return key.D.Bytes()
+}
+
+func UnmarshalHex(hx string) (key *ecdsa.PrivateKey) {
+	bs, err := hex.DecodeString(hx)
+	if err != nil {
+		panic(err)
+	}
+	return Unmarshal(bs)
+}
+
+func Unmarshal(bs []byte) (key *ecdsa.PrivateKey) {
+	if len(bs) != 32 {
+		panic("bad key length")
+	}
+	key = new(ecdsa.PrivateKey)
+	key.Curve = elliptic.P256()
+	key.D = new(big.Int).SetBytes(bs)
+	key.PublicKey.X, key.PublicKey.Y = key.Curve.ScalarBaseMult(bs)
+	return key
 }

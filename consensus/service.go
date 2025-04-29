@@ -3,6 +3,7 @@ package consensus
 import (
 	"encoding/binary"
 	"github.com/patrickmao1/beeftea/crypto"
+	"github.com/patrickmao1/beeftea/network"
 	"github.com/patrickmao1/beeftea/types"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/blake2b"
@@ -22,37 +23,38 @@ type roundState struct {
 type Service struct {
 	*types.Config
 	*roundState
-	clients []types.ConsensusRPCClient
+	*network.Network
 
 	mu sync.RWMutex
 
 	// Operations requested by users
 	reqs map[string]*types.PutReq // id -> PutReq
 
-	// Network inbound/outbound buffers
-	inMsgs  map[string]*types.Message
-	outMsgs map[string]*types.Message
+	// The key-value store
+	db map[string]string
 }
 
 func NewService(config *types.Config) *Service {
-	return &Service{
-		Config:  config,
-		reqs:    make(map[string]*types.PutReq),
-		inMsgs:  make(map[string]*types.Message),
-		outMsgs: make(map[string]*types.Message),
+	s := &Service{
+		Config: config,
+		reqs:   make(map[string]*types.PutReq),
 	}
+	s.Network = network.NewNetwork(
+		config.MyIndex(),
+		config.MyKey(),
+		config.Peers,
+		s.handleMessage,
+	)
+	return s
 }
 
 // Start starts the main consensus loop and the RPC servers
 func (s *Service) Start() {
-	log.Infoln("starting consensus RPC")
-	go s.startConsensusRPC()
+	log.Infoln("starting network")
+	go s.Network.Start()
 
 	log.Infoln("starting external RPC")
-	go s.startExternalRPC()
-
-	log.Infoln("dialing peers")
-	go s.dialPeers()
+	go s.startRPC()
 
 	log.Infoln("starting consensus main loop")
 
@@ -136,7 +138,7 @@ func (s *Service) propose() {
 	msg := &types.Message{Type: &types.Message_Proposal{
 		Proposal: proposal,
 	}}
-	s.putMsg(msg)
+	s.Broadcast(msg)
 }
 
 func (s *Service) prepare() {

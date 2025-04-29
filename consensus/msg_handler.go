@@ -5,29 +5,32 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func (s *Service) handleMessage(msg *types.Message) {
+func (s *Service) handleMessage(msg *types.Message) (shouldDefer bool) {
 	var err error
 	switch msg.Type.(type) {
 	case *types.Message_Proposal:
-		err = s.handleProposal(msg.GetProposal())
+		shouldDefer, err = s.handleProposal(msg.GetProposal())
 	case *types.Message_Prepare:
-		err = s.handlePrepare(msg.GetPrepare())
+		shouldDefer, err = s.handlePrepare(msg.GetPrepare())
 	case *types.Message_Commit:
-		err = s.handleCommit(msg.GetCommit())
+		shouldDefer, err = s.handleCommit(msg.GetCommit())
+	default:
+		log.Panicf("unsupported message type: %T", msg.Type)
 	}
 	if err != nil {
 		log.Errorf("handleMessage err: %s", err.Error())
 	}
+	return shouldDefer
 }
 
-func (s *Service) handleProposal(proposal *types.Proposal) error {
-	return nil
+func (s *Service) handleProposal(proposal *types.Proposal) (shouldDefer bool, err error) {
+	return false, nil
 }
 
-func (s *Service) handlePrepare(prep *types.Prepare) error {
-	return nil
+func (s *Service) handlePrepare(prep *types.Prepare) (shouldDefer bool, err error) {
+	return false, nil
 }
 
-func (s *Service) handleCommit(comm *types.Commit) error {
-	return nil
+func (s *Service) handleCommit(comm *types.Commit) (shouldDefer bool, err error) {
+	return false, nil
 }

@@ -8,14 +8,14 @@ import (
 	"net"
 )
 
-// ExternalRPC handles the incoming request from clients that wants to interact with the system
-func (s *Service) startExternalRPC() {
+// Handles the incoming request from clients that wants to interact with the system
+func (s *Service) startRPC() {
 	svr := grpc.NewServer()
 	lis, err := net.Listen("tcp", "0.0.0.0:8080")
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Infof("grpc listening on 0.0.0.0:8080")
+	log.Infof("External server listening on 0.0.0.0:8080")
 	types.RegisterExternalRPCServer(svr, s)
 	err = svr.Serve(lis)
 	if err != nil {
@@ -31,6 +31,11 @@ func (s *Service) Put(ctx context.Context, req *types.PutReq) (*types.PutRes, er
 }
 
 func (s *Service) Get(ctx context.Context, req *types.GetReq) (*types.GetRes, error) {
-	//TODO implement me
-	panic("implement me")
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	val := s.db[req.Key]
+	return &types.GetRes{Kv: &types.KeyValue{
+		Key: req.Key,
+		Val: val,
+	}}, nil
 }
