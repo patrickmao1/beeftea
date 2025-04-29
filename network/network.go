@@ -27,17 +27,24 @@ type Network struct {
 
 type HandleMsgFunc func(msg *types.Message) (shouldDefer bool)
 
-func NewNetwork(myIndex uint32, key *ecdsa.PrivateKey, handleMsg HandleMsgFunc) *Network {
+func NewNetwork(
+	myIndex uint32,
+	key *ecdsa.PrivateKey,
+	peers []*types.Peer,
+	handleMsg HandleMsgFunc,
+) *Network {
 	n := &Network{
 		idx:       myIndex,
 		key:       key,
 		handleMsg: handleMsg,
+		peers:     peers,
 		deferred:  make(map[string]*types.Message),
 	}
 	return n
 }
 
 func (n *Network) Start() {
+	log.Info("starting network, my peer index: ", n.idx)
 	go n.startRPC()
 	go n.dialPeers()
 	n.processDeferred()
@@ -78,7 +85,7 @@ func (n *Network) processDeferred() {
 	}
 }
 
-func (n *Network) ingestInbound(msgs []*types.Message) {
+func (n *Network) ingest(msgs []*types.Message) {
 	for _, msg := range msgs {
 		go n.handleMsg(msg)
 	}
@@ -91,7 +98,6 @@ func (n *Network) doBroadcast(msgs []*types.Message) {
 		NodeIndex: n.idx,
 		Sig:       n.sign(_msgs),
 	}
-
 	for i, client := range n.clients {
 		go func() {
 			_, err := client.Send(context.Background(), envelope)

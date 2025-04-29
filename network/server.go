@@ -16,7 +16,7 @@ func (n *Network) startRPC() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Infof("grpc listening on 0.0.0.0:9090")
+	log.Infof("Consensus server listening on 0.0.0.0:9090")
 	types.RegisterConsensusRPCServer(svr, n)
 	err = svr.Serve(lis)
 	if err != nil {
@@ -38,7 +38,7 @@ func (n *Network) Send(_ context.Context, envelope *types.Envelope) (*types.Empt
 		log.Errorf("failed to verify signature for msg from peer %d", envelope.NodeIndex)
 	}
 
-	n.ingestInbound(envelope.Msgs.Msgs)
+	n.ingest(envelope.Msgs.Msgs)
 
 	return &types.Empty{}, nil
 }

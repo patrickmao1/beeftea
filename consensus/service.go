@@ -29,6 +29,9 @@ type Service struct {
 
 	// Operations requested by users
 	reqs map[string]*types.PutReq // id -> PutReq
+
+	// The key-value store
+	db map[string]string
 }
 
 func NewService(config *types.Config) *Service {
@@ -39,6 +42,7 @@ func NewService(config *types.Config) *Service {
 	s.Network = network.NewNetwork(
 		config.MyIndex(),
 		config.MyKey(),
+		config.Peers,
 		s.handleMessage,
 	)
 	return s
@@ -50,7 +54,7 @@ func (s *Service) Start() {
 	go s.Network.Start()
 
 	log.Infoln("starting external RPC")
-	go s.startExternalRPC()
+	go s.startRPC()
 
 	log.Infoln("starting consensus main loop")
 
