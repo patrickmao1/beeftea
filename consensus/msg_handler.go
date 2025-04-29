@@ -1,11 +1,13 @@
 package consensus
 
 import (
+	"bytes"
 	"github.com/patrickmao1/beeftea/types"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/blake2b"
 )
 
-func (s *Service) handleMessage(msg *types.Message) (shouldDefer bool) {
+func (s *Service) handleMessage(nodeIdx uint32, msg *types.Message) (shouldDefer bool) {
 	var err error
 	switch msg.Type.(type) {
 	case *types.Message_Proposal:
@@ -22,47 +24,48 @@ func (s *Service) handleMessage(msg *types.Message) (shouldDefer bool) {
 	}
 	return shouldDefer
 }
-//this method is called when the message is a proposal
+
+// this method is called when the message is a proposal
 func (s *Service) handleProposal(proposal *types.Proposal) (shouldDefer bool, err error) {
-	// collect all proposals, then once the timer ends, call prepare with the minimum 
+	// collect all proposals, then once the timer ends, call prepare with the minimum
 	// actually keep all proposals for later, edit roundstate so that it stores all proposals
 
 	s.mu.Lock()
-    defer s.mu.Unlock()
+	defer s.mu.Unlock()
 
-    // Make sure we are in the right round
-    if proposal.Height != s.roundState.height || proposal.Round != s.roundState.round {
-        log.Warnf("Received proposal for wrong round: got (h=%d, r=%d), expected (h=%d, r=%d)",
-            proposal.Height, proposal.Round, s.roundState.height, s.roundState.round)
-        return true, nil // Defer it: maybe we haven't advanced to this round yet
-    }
+	// Make sure we are in the right round
+	if proposal.Height != s.roundState.height || proposal.Round != s.roundState.round {
+		log.Warnf("Received proposal for wrong round: got (h=%d, r=%d), expected (h=%d, r=%d)",
+			proposal.Height, proposal.Round, s.roundState.height, s.roundState.round)
+		return true, nil // Defer it: maybe we haven't advanced to this round yet
+	}
 
 	s.roundState.proposals = append(s.roundState.proposals, proposal)
 
-    if s.roundState.minProposal == nil {
-        s.roundState.minProposal = proposal
-        log.Infof("Set initial minProposal to proposal with hash %x", HashProposal(proposal))
-    } else {
-        currentHash := HashProposal(s.roundState.minProposal)
-        newHash := HashProposal(proposal)
-        if bytes.Compare(newHash, currentHash) < 0 {
-            s.roundState.minProposal = proposal
-            log.Infof("Updated minProposal to proposal with smaller hash %x", newHash)
-        } else {
-            log.Infof("Ignored proposal with larger hash %x", newHash)
-        }
-    }
+	if s.roundState.minProposal == nil {
+		s.roundState.minProposal = proposal
+		log.Infof("Set initial minProposal to proposal with hash %x", HashProposal(proposal))
+	} else {
+		currentHash := HashProposal(s.roundState.minProposal)
+		newHash := HashProposal(proposal)
+		if bytes.Compare(newHash, currentHash) < 0 {
+			s.roundState.minProposal = proposal
+			log.Infof("Updated minProposal to proposal with smaller hash %x", newHash)
+		} else {
+			log.Infof("Ignored proposal with larger hash %x", newHash)
+		}
+	}
 
-    return false, nil
+	return false, nil
 }
 
 func HashProposal(p *types.Proposal) []byte {
-    data, err := proto.Marshal(p)
-    if err != nil {
-        log.Panicf("Failed to marshal proposal: %v", err)
-    }
-    hash := blake2b.Sum256(data)
-    return hash[:]
+	data, err := proto.Marshal(p)
+	if err != nil {
+		log.Panicf("Failed to marshal proposal: %v", err)
+	}
+	hash := blake2b.Sum256(data)
+	return hash[:]
 }
 
 func (s *Service) handlePrepare(prep *types.Prepare) (shouldDefer bool, err error) {
@@ -71,7 +74,8 @@ func (s *Service) handlePrepare(prep *types.Prepare) (shouldDefer bool, err erro
 	// once we reach quorum, call commit
 	return false, nil
 }
-//this method is called when the message is a commit
+
+// this method is called when the message is a commit
 func (s *Service) handleCommit(comm *types.Commit) (shouldDefer bool, err error) {
 	return false, nil
 }
