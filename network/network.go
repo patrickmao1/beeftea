@@ -20,8 +20,7 @@ type Network struct {
 	peers     []*types.Peer
 	clients   []types.ConsensusRPCClient
 
-	mu          sync.Mutex
-	inboundCond *sync.Cond
+	mu sync.Mutex
 
 	deferred map[string]*types.Message
 }
@@ -35,7 +34,6 @@ func NewNetwork(myIndex uint32, key *ecdsa.PrivateKey, handleMsg HandleMsgFunc) 
 		handleMsg: handleMsg,
 		deferred:  make(map[string]*types.Message),
 	}
-	n.inboundCond = sync.NewCond(&n.mu)
 	return n
 }
 
