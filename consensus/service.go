@@ -29,18 +29,12 @@ type Service struct {
 
 	// Operations requested by users
 	reqs map[string]*types.PutReq // id -> PutReq
-
-	// Network inbound/outbound buffers
-	inMsgs  map[string]*types.Message
-	outMsgs map[string]*types.Message
 }
 
 func NewService(config *types.Config) *Service {
 	s := &Service{
-		Config:  config,
-		reqs:    make(map[string]*types.PutReq),
-		inMsgs:  make(map[string]*types.Message),
-		outMsgs: make(map[string]*types.Message),
+		Config: config,
+		reqs:   make(map[string]*types.PutReq),
 	}
 	s.Network = network.NewNetwork(
 		config.MyIndex(),
@@ -140,7 +134,7 @@ func (s *Service) propose() {
 	msg := &types.Message{Type: &types.Message_Proposal{
 		Proposal: proposal,
 	}}
-	s.putMsg(msg)
+	s.Broadcast(msg)
 }
 
 func (s *Service) prepare() {
