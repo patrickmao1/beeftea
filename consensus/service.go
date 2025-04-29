@@ -172,7 +172,7 @@ func (s *Service) prepare() error {
     // broadcast Prepare message carrying full digest
     pr := &types.Prepare{ProposalDigest: digest}
     msg := &types.Message{Type: &types.Message_Prepare{Prepare: pr}}
-    s.Broadcast(msg)
+    s.Network.Broadcast(msg)
 
     // track our local prepare for later commit
     s.RoundState.prepares = append(s.RoundState.prepares, pr)
