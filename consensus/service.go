@@ -19,8 +19,8 @@ type roundState struct {
 	seed              []byte
 	minProposal       *types.Proposal
 	proposals         []*types.Proposal
-	prepares          []*types.Prepare
-	commits           []*types.Commit
+	prepares          map[string]map[uint32]bool
+	commits           map[string]map[uint32]bool
 }
 
 type Service struct {
