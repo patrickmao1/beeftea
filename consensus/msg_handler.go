@@ -22,7 +22,7 @@ func (s *Service) handleMessage(msg *types.Message) (shouldDefer bool) {
 	}
 	return shouldDefer
 }
-
+//this method is called when the message is a proposal
 func (s *Service) handleProposal(proposal *types.Proposal) (shouldDefer bool, err error) {
 	// collect all proposals, then once the timer ends, call prepare with the minimum 
 	// actually keep all proposals for later, edit roundstate so that it stores all proposals
@@ -71,7 +71,7 @@ func (s *Service) handlePrepare(prep *types.Prepare) (shouldDefer bool, err erro
 	// once we reach quorum, call commit
 	return false, nil
 }
-
+//this method is called when the message is a commit
 func (s *Service) handleCommit(comm *types.Commit) (shouldDefer bool, err error) {
 	return false, nil
 }
