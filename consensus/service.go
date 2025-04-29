@@ -21,6 +21,8 @@ type roundState struct {
 	proposals         []*types.Proposal
 	prepares          map[string]map[uint32]bool
 	commits           map[string]map[uint32]bool
+	prepared          bool
+	committed         bool
 }
 
 type Service struct {
@@ -176,6 +178,7 @@ func (s *Service) prepare() error {
     s.prepares = append(s.prepares, pr)
     key := binary.BigEndian.Uint64(digest[:8])
     log.Infof("round %d: sent Prepare for digest %x", s.round(), key)
+	prepared := True
     return nil
 }
 
@@ -196,6 +199,7 @@ func (s *Service) commit(proposalDigest []byte) error {
     // track local commit
     s.commits = append(s.commits, cm)
     log.Infof("round %d: sent Commit for digest %x", s.round(), binary.BigEndian.Uint64(proposalDigest[:8]))
+	committed := True
     return nil
 }
 
