@@ -142,7 +142,28 @@ func (s *Service) propose() {
 }
 
 func (s *Service) prepare() {
+	//if handleprepare is true
+	quorum := 2*int(s.F) + 1
 
+	//uses the first 8 bytes of ProposalDigest as the key
+	counts := make(map[uint64] int)
+
+	for _, p := range s.prepares {
+		if p == nil || len(p.ProposalDigest) < 8{
+			continue
+		}
+		//interpreting the first 8 bytes as unit64
+		key := binary.BigEndian.Unit64(p.ProposalDigest[:8])
+		counts[key]++
+
+		//check to see if quorum is reached and send Commit
+
+		if counts[key] >= quorum {
+			commit := &types.Commit{ ProposalDigest: p.ProposalDigest }
+			msg := &types.Message{ Type: &types.Message_Commit{ Commit: commit }}
+			s.putMsg(msg)
+		}
+	}
 }
 
 func (s *Service) commit() {
