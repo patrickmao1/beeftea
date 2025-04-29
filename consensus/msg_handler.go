@@ -22,15 +22,15 @@ func (s *Service) handleMessage(msg *types.Message) (shouldDefer bool) {
 	}
 	return shouldDefer
 }
-
+//this method is called when the message is a proposal
 func (s *Service) handleProposal(proposal *types.Proposal) (shouldDefer bool, err error) {
 	return false, nil
 }
-
+//this method is called when the message is a prepare
 func (s *Service) handlePrepare(prep *types.Prepare) (shouldDefer bool, err error) {
 	return false, nil
 }
-
+//this method is called when the message is a commit
 func (s *Service) handleCommit(comm *types.Commit) (shouldDefer bool, err error) {
 	return false, nil
 }

@@ -141,8 +141,22 @@ func (s *Service) propose() {
 	s.Broadcast(msg)
 }
 
+// prepare implements phase 2: select the minimal valid proposal
+// and broadcast a Prepare once it has seen 2f+1 matching proposals.
 func (s *Service) prepare() {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    prepareMsg := &types.Message{Type: &types.Message_Prepare{
+        Prepare: &types.Prepare{ProposalDigest: fullDigest},
+    }}
+    s.Broadcast(prepareMsg)
+    s.prepares = append(s.prepares, &types.Prepare{ProposalDigest: fullDigest})
+}
+
+func (s *Service) commit() {
 	//if handleprepare is true
+	s.mu.Lock()
+    defer s.mu.Unlock()
 	quorum := 2*int(s.F) + 1
 
 	//uses the first 8 bytes of ProposalDigest as the key
@@ -161,12 +175,10 @@ func (s *Service) prepare() {
 		if counts[key] >= quorum {
 			commit := &types.Commit{ ProposalDigest: p.ProposalDigest }
 			msg := &types.Message{ Type: &types.Message_Commit{ Commit: commit }}
-			s.putMsg(msg)
+			s.Broadcast(msg)
+			s.commits = append(s.commits, &types.Commit{ProposalDigest: p.ProposalDigest})
 		}
 	}
-}
-
-func (s *Service) commit() {
 
 }
 
