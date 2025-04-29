@@ -7,11 +7,11 @@ import (
 	"math"
 )
 
-func (m *Message) Hash() []byte {
-	if m == nil {
-		panic("nil message")
+func (e *Envelope) Hash() []byte {
+	if e == nil {
+		panic("hash nil")
 	}
-	bs, err := proto.Marshal(m)
+	bs, err := proto.Marshal(e)
 	if err != nil {
 		panic("failed to marshal message: " + err.Error())
 	}

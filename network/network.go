@@ -22,10 +22,10 @@ type Network struct {
 
 	mu sync.Mutex
 
-	deferred map[string]*types.Message
+	deferred map[string]*types.Envelope
 }
 
-type HandleMsgFunc func(msg *types.Message) (shouldDefer bool)
+type HandleMsgFunc func(nodeIdx uint32, m *types.Message) (shouldDefer bool)
 
 func NewNetwork(
 	myIndex uint32,
@@ -38,7 +38,7 @@ func NewNetwork(
 		key:       key,
 		handleMsg: handleMsg,
 		peers:     peers,
-		deferred:  make(map[string]*types.Message),
+		deferred:  make(map[string]*types.Envelope),
 	}
 	return n
 }
@@ -53,7 +53,7 @@ func (n *Network) Start() {
 // Broadcast sends the msg to all nodes in the network asynchronously.
 // NOTE: this function returns immediately without waiting for the other nodes to respond
 func (n *Network) Broadcast(msg *types.Message) {
-	n.doBroadcast([]*types.Message{msg})
+	n.doBroadcast(msg)
 }
 
 func (n *Network) dialPeers() {
@@ -73,11 +73,11 @@ func (n *Network) processDeferred() {
 	for {
 		<-ticker.C
 		n.mu.Lock()
-		newRetries := make(map[string]*types.Message)
-		for id, msg := range n.deferred {
-			retry := n.handleMsg(msg)
-			if retry {
-				newRetries[id] = msg
+		newRetries := make(map[string]*types.Envelope)
+		for id, e := range n.deferred {
+			shouldDefer := n.handleMsg(e.NodeIndex, e.Msg)
+			if shouldDefer {
+				newRetries[id] = e
 			}
 		}
 		n.deferred = newRetries
@@ -85,18 +85,22 @@ func (n *Network) processDeferred() {
 	}
 }
 
-func (n *Network) ingest(msgs []*types.Message) {
-	for _, msg := range msgs {
-		go n.handleMsg(msg)
-	}
+func (n *Network) ingest(e *types.Envelope) {
+	go func() {
+		shouldDefer := n.handleMsg(e.NodeIndex, e.Msg)
+		if shouldDefer {
+			n.mu.Lock()
+			n.deferred[string(e.Hash())] = e
+			n.mu.Unlock()
+		}
+	}()
 }
 
-func (n *Network) doBroadcast(msgs []*types.Message) {
-	_msgs := &types.Messages{Msgs: msgs}
+func (n *Network) doBroadcast(msg *types.Message) {
 	envelope := &types.Envelope{
-		Msgs:      _msgs,
+		Msg:       msg,
 		NodeIndex: n.idx,
-		Sig:       n.sign(_msgs),
+		Sig:       n.sign(msg),
 	}
 	for i, client := range n.clients {
 		go func() {

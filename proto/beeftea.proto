@@ -37,13 +37,9 @@ service ConsensusRPC {
 message Empty {}
 
 message Envelope {
-    Messages msgs = 1;
+    Message msg = 1;
     uint32 node_index = 2;
     bytes sig = 3;
-}
-
-message Messages {
-    repeated Message msgs = 1;
 }
 
 message Message {

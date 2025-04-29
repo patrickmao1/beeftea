@@ -26,7 +26,7 @@ func (n *Network) startRPC() {
 
 // Send handles incoming call to the Send gRPC
 func (n *Network) Send(_ context.Context, envelope *types.Envelope) (*types.Empty, error) {
-	bs, err := proto.Marshal(envelope.Msgs)
+	bs, err := proto.Marshal(envelope.Msg)
 	if err != nil {
 		log.Errorf("failed to marshal msg: %s", err.Error())
 		return nil, err
@@ -38,7 +38,7 @@ func (n *Network) Send(_ context.Context, envelope *types.Envelope) (*types.Empt
 		log.Errorf("failed to verify signature for msg from peer %d", envelope.NodeIndex)
 	}
 
-	n.ingest(envelope.Msgs.Msgs)
+	n.ingest(envelope)
 
 	return &types.Empty{}, nil
 }
