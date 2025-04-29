@@ -3,6 +3,7 @@ package consensus
 import (
 	"encoding/binary"
 	"github.com/patrickmao1/beeftea/crypto"
+	"github.com/patrickmao1/beeftea/network"
 	"github.com/patrickmao1/beeftea/types"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/blake2b"
@@ -22,7 +23,7 @@ type roundState struct {
 type Service struct {
 	*types.Config
 	*roundState
-	clients []types.ConsensusRPCClient
+	*network.Network
 
 	mu sync.RWMutex
 
@@ -35,24 +36,27 @@ type Service struct {
 }
 
 func NewService(config *types.Config) *Service {
-	return &Service{
+	s := &Service{
 		Config:  config,
 		reqs:    make(map[string]*types.PutReq),
 		inMsgs:  make(map[string]*types.Message),
 		outMsgs: make(map[string]*types.Message),
 	}
+	s.Network = network.NewNetwork(
+		config.MyIndex(),
+		config.MyKey(),
+		s.handleMessage,
+	)
+	return s
 }
 
 // Start starts the main consensus loop and the RPC servers
 func (s *Service) Start() {
-	log.Infoln("starting consensus RPC")
-	go s.startConsensusRPC()
+	log.Infoln("starting network")
+	go s.Network.Start()
 
 	log.Infoln("starting external RPC")
 	go s.startExternalRPC()
-
-	log.Infoln("dialing peers")
-	go s.dialPeers()
 
 	log.Infoln("starting consensus main loop")
 
