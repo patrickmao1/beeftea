@@ -83,7 +83,7 @@ func getValue(key string) (string, error) {
 		}
 	}
 
-	const quorum = 4
+	const quorum = 2 // f+1
 	if maxCount < quorum {
 		return "", errors.New("no value has reached quorum")
 	}
