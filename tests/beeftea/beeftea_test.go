@@ -2,11 +2,13 @@ package beeftea
 
 import (
 	"context"
+	"errors"
 	"github.com/patrickmao1/beeftea/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"sync"
 	"testing"
 )
 
@@ -43,4 +45,48 @@ func TestPut(t *testing.T) {
 		require.NoError(t, err)
 	}
 	log.Infof("res %+v", res)
+}
+
+func TestGet(t *testing.T) {
+	key := "hello"
+	log.Infof("querying value for key \"%s\"", key)
+	val, err := getValue(key)
+	require.NoError(t, err)
+	log.Infof("val %s", val)
+}
+
+func getValue(key string) (string, error) {
+	vals := make(map[string]int)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	for _, client := range clients {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			res, err := client.Get(context.Background(), &types.GetReq{Key: key})
+			if err != nil {
+				return
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			vals[res.Kv.Val]++
+		}()
+	}
+	wg.Wait()
+
+	maxVal := ""
+	maxCount := 0
+	for val, count := range vals {
+		if count > maxCount {
+			maxVal = val
+			maxCount = count
+		}
+	}
+
+	const quorum = 4
+	if maxCount < quorum {
+		return "", errors.New("no value has reached quorum")
+	}
+
+	return maxVal, nil
 }
