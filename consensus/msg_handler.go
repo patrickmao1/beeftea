@@ -13,9 +13,9 @@ func (s *Service) handleMessage(nodeIdx uint32, msg *types.Message) (shouldDefer
 	case *types.Message_Proposal:
 		shouldDefer, err = s.handleProposal(msg.GetProposal())
 	case *types.Message_Prepare:
-		shouldDefer, err = s.handlePrepare(msg.GetPrepare())
+		shouldDefer, err = s.handlePrepare(msg.GetPrepare(), nodeIdx)
 	case *types.Message_Commit:
-		shouldDefer, err = s.handleCommit(msg.GetCommit())
+		shouldDefer, err = s.handleCommit(msg.GetCommit(), nodeIdx)
 	default:
 		log.Panicf("unsupported message type: %T", msg.Type)
 	}
@@ -68,14 +68,54 @@ func HashProposal(p *types.Proposal) []byte {
 	return hash[:]
 }
 
-func (s *Service) handlePrepare(prep *types.Prepare) (shouldDefer bool, err error) {
+func (s *Service) handlePrepare(prep *types.Prepare, nodeIdx uint32) (shouldDefer bool, err error) {
 	// msg that i get here should be the same as minproposal
 	// store all prepares in ether an array or a map, then check if we have reached quorum on any of the prepares
 	// once we reach quorum, call commit
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	currentRound := s.round()
+
+	if s.roundState == nil || currentRound != s.round() {
+		log.Warnf("Deferring Prepare: node is not in the correct round (%d)", currentRound)
+		return true, nil
+	}
+
+	if !s.roundState.prepared {
+		log.Warnf("Deferring Prepare: haven't prepared yet, so can't accept others' prepares")
+		return true, nil
+	}
+
+	digest := string(prep.ProposalDigest)
+
+	// initialize map if digest is seen for the first time 
+	if s.roundState.prepares == nil {
+		s.roundState.prepares = make(map[string]map[uint32]bool)
+	}
+	if _, exists := s.roundState.prepares[digest]; !exists {
+		s.roundState.prepares[digest] = make(map[uint32]bool)
+	}
+
+	// Check for double-vote
+	if s.roundState.prepares[digest][nodeIdx] {
+		log.Warnf("Duplicate Prepare received from node %d for digest %x", nodeIdx, prep.ProposalDigest)
+		return false, nil
+	}
+
+	// Record the prepare vote
+	s.roundState.prepares[digest][nodeIdx] = true
+	log.Infof("Accepted Prepare from node %d for digest %x", nodeIdx, prep.ProposalDigest)
+
+	if len(s.roundState.prepares[digest]) > s.f * 2 && !s.roundState.committed {
+		log.Infof("Prepare quorum reached for digest %x, broadcasting Commit", prep.ProposalDigest)
+		go s.commit(prep.ProposalDigest) // Call asynchronously to avoid deadlock
+		s.roundState.committed = true 
+	}
 	return false, nil
 }
 
 // this method is called when the message is a commit
-func (s *Service) handleCommit(comm *types.Commit) (shouldDefer bool, err error) {
+func (s *Service) handleCommit(comm *types.Commit, nodeIdx uint32) (shouldDefer bool, err error) {
 	return false, nil
 }
