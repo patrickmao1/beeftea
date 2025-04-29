@@ -16,7 +16,7 @@ type roundState struct {
 	prevProposerProof []byte
 	seed              []byte
 	minProposal       *types.Proposal
-	proposals
+	proposals         []*types.Proposal
 	prepares          []*types.Prepare
 	commits           []*types.Commit
 }
