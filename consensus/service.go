@@ -199,8 +199,17 @@ func (s *Service) commit(proposalDigest []byte) error {
     return nil
 }
 
-func (s *Service) commitLocal() {
+func (s *Service) commitLocal(digest []byte) {
+    for _, proposal := range s.roundState.proposals {
+        if bytes.Equal(HashProposal(proposal), digest) {
+            for _, req := range proposal.Reqs {
+                s.kvStore[req.Key] = req.Value
+            }
+            break
+        }
+		
 
+    }
 }
 
 func (s *Service) round() uint32 {
