@@ -22,6 +22,7 @@ func main() {
 			Key: crypto.GenKeyDeterministic(int64(i)),
 		})
 	}
+	F: 					(unit32(len(peersList)+1)-1) /3, //this solves for f using pbft f = n-1/3
 	s := consensus.NewService(config)
 	s.Start()
 }
