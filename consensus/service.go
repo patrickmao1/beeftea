@@ -11,11 +11,14 @@ import (
 	"sync"
 	"time"
 )
-
+// list of the proposals, in commitlocal check individually if the digests match, when they do then putReq
+// map for prepares and commits, it should have the digest as a key and the value is an array of the "from" field so
+// that some node can't continuously send prepare messages and get quorum by itself
 type roundState struct {
 	prevProposerProof []byte
 	seed              []byte
 	minProposal       *types.Proposal
+	proposals         []*types.Proposal
 	prepares          []*types.Prepare
 	commits           []*types.Commit
 }
@@ -69,6 +72,8 @@ func (s *Service) Start() {
 
 		// Blocks until the proposal phase has ended
 		<-proposalPhaseEnd
+
+		s.prepare()
 
 		// Refresh round timer
 		timer.Reset(time.Until(s.roundEndTime()))
