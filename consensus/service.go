@@ -157,12 +157,12 @@ func (s *Service) prepare() error {
     s.mu.Lock()
     defer s.mu.Unlock()
 
-    if s.minProposal == nil {
+    if s.RoundState.minProposal == nil {
         return errors.New("no minProposal to prepare")
     }
 
     // compute full hash of minProposal
-    raw, err := proto.Marshal(s.minProposal)
+    raw, err := proto.Marshal(s.RoundState.minProposal)
     if err != nil {
         return err
     }
@@ -175,10 +175,10 @@ func (s *Service) prepare() error {
     s.Broadcast(msg)
 
     // track our local prepare for later commit
-    s.prepares = append(s.prepares, pr)
+    s.RoundState.prepares = append(s.RoundState.prepares, pr)
     key := binary.BigEndian.Uint64(digest[:8])
     log.Infof("round %d: sent Prepare for digest %x", s.round(), key)
-	prepared := True
+	s.RoundState.prepared := True
     return nil
 }
 
@@ -197,7 +197,7 @@ func (s *Service) commit(proposalDigest []byte) error {
     s.Broadcast(msg)
 
     // track local commit
-    s.commits = append(s.commits, cm)
+    s.RoundState.commits = append(s.RoundState.commits, cm)
     log.Infof("round %d: sent Commit for digest %x", s.round(), binary.BigEndian.Uint64(proposalDigest[:8]))
 	committed := True
     return nil
@@ -222,15 +222,15 @@ func (s *Service) reset() {
     s.mu.Lock()
     defer s.mu.Unlock()
     // keep prevProposerProof; new seed will be set in initRound
-    s.seed = nil
-    s.minProposal = nil
-    s.proposals = nil           // drop all collected proposals
-    s.prepares = nil            // drop prepare records
-    s.commits = nil             // drop commit records
-    s.prepared = false          // clear flags
-    s.committed = false
-    s.inMsgs = make(map[string]*types.Message)
-    s.outMsgs = make(map[string]*types.Message)
+    s.RoundState.seed = nil
+    s.RoundState.minProposal = nil
+    s.RoundState.proposals = nil           // drop all collected proposals
+    s.RoundState.prepares = nil            // drop prepare records
+    s.RoundState.commits = nil             // drop commit records
+    s.RoundState.prepared = false          // clear flags
+    s.RoundState.committed = false
+    s.RoundState.inMsgs = make(map[string]*types.Message)
+    s.RoundState.outMsgs = make(map[string]*types.Message)
 }
 
 func (s *Service) round() uint32 {
