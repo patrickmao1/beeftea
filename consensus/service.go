@@ -48,6 +48,7 @@ func NewService(config *types.Config) *Service {
 	s := &Service{
 		Config: config,
 		reqs:   make(map[string]*types.PutReq),
+		db:     make(map[string]string),
 	}
 	log.Infof("config %+v", config)
 	s.Network = network.NewNetwork(
