@@ -194,17 +194,15 @@ func (s *Service) prepare() error {
 			pr := &types.Prepare{ProposalDigest: fakeDigest}
 			msg := &types.Message{Type: &types.Message_Prepare{Prepare: pr}}
 			s.Broadcast(msg)
-		case "twoWrongBroadcasts":
+		case "fourWrongBroadcasts":
 			fakeDigest := []byte("abcdefg12345678")
 			log.Infof("Sending malicious prepare!!!!!! fakeDigest %x", fakeDigest)
 			pr := &types.Prepare{ProposalDigest: fakeDigest}
 			msg := &types.Message{Type: &types.Message_Prepare{Prepare: pr}}
 			s.Broadcast(msg)
-			fakeDigestTwo := []byte("abcdefg12345679")
-			log.Infof("Sending malicious prepare!!!!!! fakeDigest %x", fakeDigest)
-			prTwo := &types.Prepare{ProposalDigest: fakeDigestTwo}
-			msgTwo := &types.Message{Type: &types.Message_Prepare{Prepare: prTwo}}
-			s.Broadcast(msgTwo)
+			s.Broadcast(msg)
+			s.Broadcast(msg)
+			s.Broadcast(msg)
 
 		default:
 			//normal case:
