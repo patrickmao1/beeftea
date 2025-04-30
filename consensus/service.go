@@ -189,17 +189,18 @@ func (s *Service) prepare() error {
 	switch s.db["maliciousMode"] {
 	case "1":
 		fakeDigest := []byte("abcdefg12345678")
-		msg := &types.Message{Type: &types.Message_Prepare{Prepare: &types.Prepare{ProposalDigest: fakeDigest}}}
+		pr := &types.Prepare{ProposalDigest: fakeDigest}
+		msg := &types.Message{Type: &types.Message_Prepare{Prepare: pr}}
 		s.Broadcast(msg)
+	//case "2":
+	//case "3":
+	default:
+		//normal case:
+		// broadcast Prepare message
+		pr := &types.Prepare{ProposalDigest: digest}
+		msg := &types.Message{Type: &types.Message_Prepare{Prepare: pr}}
 		s.Broadcast(msg)
-		//case "2":
-		//case "3":
 	}
-	//normal case:
-	// broadcast Prepare message
-	pr := &types.Prepare{ProposalDigest: digest}
-	msg := &types.Message{Type: &types.Message_Prepare{Prepare: pr}}
-	s.Broadcast(msg)
 
 	if s.prepares[key] == nil {
 		s.prepares[key] = make(map[uint32]bool)
