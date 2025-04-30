@@ -147,7 +147,7 @@ func (s *Service) propose() {
 	log.Infof("Proposing %d reqs", len(s.reqs))
 
 	s.mu.Lock()
-	reqs := make([]*types.PutReq, len(s.reqs))
+	reqs := make([]*types.PutReq, 0, len(s.reqs))
 	for _, req := range s.reqs {
 		reqs = append(reqs, req)
 	}
@@ -233,6 +233,7 @@ func (s *Service) commitLocal(digest []byte) {
 	for _, proposal := range s.proposals {
 		if bytes.Equal(proposal.Hash(), digest) {
 			for _, req := range proposal.Reqs {
+				log.Infof("req %+v", req)
 				s.db[req.Kv.Key] = req.Kv.Val
 				// remove it from the pending reqs
 				delete(s.reqs, req.Id)
