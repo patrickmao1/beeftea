@@ -1,22 +1,13 @@
 package types
 
 import (
-	"github.com/golang/protobuf/proto"
 	"github.com/patrickmao1/beeftea/crypto"
-	"golang.org/x/crypto/blake2b"
+	"github.com/patrickmao1/beeftea/utils"
 	"math"
 )
 
 func (e *Envelope) Hash() []byte {
-	if e == nil {
-		panic("hash nil")
-	}
-	bs, err := proto.Marshal(e)
-	if err != nil {
-		panic("failed to marshal message: " + err.Error())
-	}
-	hash := blake2b.Sum256(bs)
-	return hash[:]
+	return utils.MustHash(e)
 }
 
 func (p *Proposal) Score() uint32 {
@@ -24,4 +15,8 @@ func (p *Proposal) Score() uint32 {
 		return math.MaxUint32
 	}
 	return crypto.RngFromProof(p.ProposerProof)
+}
+
+func (p *Proposal) Hash() []byte {
+	return utils.MustHash(p)
 }

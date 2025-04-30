@@ -1,13 +1,10 @@
 package consensus
 
 import (
-	"bytes"
-
+	"errors"
 	"github.com/patrickmao1/beeftea/crypto"
 	"github.com/patrickmao1/beeftea/types"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/crypto/blake2b"
-	"google.golang.org/protobuf/proto"
 )
 
 func (s *Service) handleMessage(nodeIdx uint32, msg *types.Message) (shouldDefer bool) {
@@ -46,30 +43,25 @@ func (s *Service) handleProposal(proposal *types.Proposal, nodeIdx uint32) (shou
 	}
 	s.roundState.proposals = append(s.roundState.proposals, proposal)
 
+	newScore := proposal.Score()
+	if newScore < s.ProposalThreshold {
+		return false, errors.New("received proposal score too small")
+	}
+
 	if s.roundState.minProposal == nil {
 		s.roundState.minProposal = proposal
-		log.Infof("Set initial minProposal to proposal with hash %x", HashProposal(proposal))
+		log.Infof("Set initial minProposal to proposal with score %d", newScore)
 	} else {
-		currentHash := HashProposal(s.roundState.minProposal)
-		newHash := HashProposal(proposal)
-		if bytes.Compare(newHash, currentHash) < 0 {
+		curMinScore := s.minProposal.Score()
+		if newScore < curMinScore {
 			s.roundState.minProposal = proposal
-			log.Infof("Updated minProposal to proposal with smaller hash %x", newHash)
+			log.Infof("Updated minProposal to proposal with smaller score %d < %d", newScore, curMinScore)
 		} else {
-			log.Infof("Ignored proposal with larger hash %x", newHash)
+			log.Infof("Ignored proposal with larger score %d > %d", newScore, curMinScore)
 		}
 	}
 
 	return false, nil
-}
-
-func HashProposal(p *types.Proposal) []byte {
-	data, err := proto.Marshal(p)
-	if err != nil {
-		log.Panicf("Failed to marshal proposal: %v", err)
-	}
-	hash := blake2b.Sum256(data)
-	return hash[:]
 }
 
 func (s *Service) handlePrepare(prep *types.Prepare, nodeIdx uint32) (shouldDefer bool, err error) {
@@ -111,7 +103,12 @@ func (s *Service) handlePrepare(prep *types.Prepare, nodeIdx uint32) (shouldDefe
 
 	if len(s.roundState.prepares[digest]) >= 3 && !s.roundState.committed {
 		log.Infof("Prepare quorum reached for digest %x, broadcasting Commit", prep.ProposalDigest)
-		go s.commit(prep.ProposalDigest) // Call asynchronously to avoid deadlock
+		go func() {
+			err := s.commit(prep.ProposalDigest) // Call asynchronously to avoid deadlock
+			if err != nil {
+				log.Errorf("commit failed: digest %x, err %s", prep.ProposalDigest, err.Error())
+			}
+		}()
 		s.roundState.committed = true
 	}
 	return false, nil
@@ -153,7 +150,7 @@ func (s *Service) handleCommit(comm *types.Commit, nodeIdx uint32) (shouldDefer 
 	log.Infof("Accepted Commit from node %d for digest %x", nodeIdx, comm.ProposalDigest)
 
 	// Quorum reached: finalize the decision
-	if len(s.roundState.commits[digest]) >= 3 {
+	if len(s.roundState.commits[digest]) >= 4 {
 		log.Infof("Commit quorum reached for digest %x. Finalizing commit.", comm.ProposalDigest)
 		go s.commitLocal(comm.ProposalDigest) // Call asynchronously to apply state changes
 	}

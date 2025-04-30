@@ -229,9 +229,8 @@ func (s *Service) commit(proposalDigest []byte) error {
 }
 
 func (s *Service) commitLocal(digest []byte) {
-
 	for _, proposal := range s.proposals {
-		if bytes.Equal(HashProposal(proposal), digest) {
+		if bytes.Equal(proposal.Hash(), digest) {
 			for _, req := range proposal.Reqs {
 				s.db[req.Kv.Key] = req.Kv.Val
 				// remove it from the pending reqs
@@ -241,20 +240,6 @@ func (s *Service) commitLocal(digest []byte) {
 		}
 
 	}
-}
-
-// reset clears all round‐specific state.
-func (s *Service) reset() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	// keep prevProposerProof; new seed will be set in initRound
-	s.seed = nil
-	s.minProposal = nil
-	s.proposals = nil  // drop all collected proposals
-	s.prepares = nil   // drop prepare records
-	s.commits = nil    // drop commit records
-	s.prepared = false // clear flags
-	s.committed = false
 }
 
 func (s *Service) round() uint32 {
