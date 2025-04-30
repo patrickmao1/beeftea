@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"bytes"
+	"github.com/patrickmao1/beeftea/crypto"
 	"github.com/patrickmao1/beeftea/types"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/blake2b"
@@ -32,6 +33,14 @@ func (s *Service) handleProposal(proposal *types.Proposal) (shouldDefer bool, er
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	pass := crypto.Verify(s.Peers[proposal.ProposerIndex].Key, s.seed, proposal.ProposerProof)
+	if !pass {
+		log.Warnf("proposal from node %d verify fail", nodeIdx)
+		// verification failed maybe because I'm not in the same round (due to a bit of desync)
+		// as the proposer, retry processing this proposal later.
+		return true, nil
+	}
 
 	// Make sure we are in the right round
 	if proposal.Height != s.roundState.height || proposal.Round != s.roundState.round {
@@ -89,7 +98,7 @@ func (s *Service) handlePrepare(prep *types.Prepare, nodeIdx uint32) (shouldDefe
 
 	digest := string(prep.ProposalDigest)
 
-	// initialize map if digest is seen for the first time 
+	// initialize map if digest is seen for the first time
 	if s.roundState.prepares == nil {
 		s.roundState.prepares = make(map[string]map[uint32]bool)
 	}
@@ -107,10 +116,10 @@ func (s *Service) handlePrepare(prep *types.Prepare, nodeIdx uint32) (shouldDefe
 	s.roundState.prepares[digest][nodeIdx] = true
 	log.Infof("Accepted Prepare from node %d for digest %x", nodeIdx, prep.ProposalDigest)
 
-	if len(s.roundState.prepares[digest]) > s.f * 2 && !s.roundState.committed {
+	if len(s.roundState.prepares[digest]) > s.f*2 && !s.roundState.committed {
 		log.Infof("Prepare quorum reached for digest %x, broadcasting Commit", prep.ProposalDigest)
 		go s.commit(prep.ProposalDigest) // Call asynchronously to avoid deadlock
-		s.roundState.committed = true 
+		s.roundState.committed = true
 	}
 	return false, nil
 }
