@@ -34,7 +34,8 @@ func (s *Service) handleProposal(proposal *types.Proposal) (shouldDefer bool, er
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	pass := crypto.Verify(s.Peers[proposal.ProposerIndex].Key, s.seed, proposal.ProposerProof)
+	pubkey := &s.Peers[proposal.ProposerIndex].Key.PublicKey
+	pass := crypto.Verify(pubkey, s.seed, proposal.ProposerProof)
 	if !pass {
 		log.Warnf("proposal from node %d verify fail", nodeIdx)
 		// verification failed maybe because I'm not in the same round (due to a bit of desync)
