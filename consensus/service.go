@@ -13,7 +13,6 @@ import (
 	"github.com/patrickmao1/beeftea/types"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/blake2b"
-	"google.golang.org/protobuf/proto"
 )
 
 // list of the proposals, in commitlocal check individually if the digests match, when they do then putReq
@@ -180,12 +179,7 @@ func (s *Service) prepare() error {
 	}
 
 	// hash the proposal
-	raw, err := proto.Marshal(s.minProposal)
-	if err != nil {
-		return err
-	}
-	sum := blake2b.Sum256(raw)
-	digest := sum[:]
+	digest := s.minProposal.Hash()
 	key := string(digest[:8])
 
 	// broadcast Prepare message
@@ -229,6 +223,9 @@ func (s *Service) commit(proposalDigest []byte) error {
 }
 
 func (s *Service) commitLocal(digest []byte) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	for _, proposal := range s.proposals {
 		if bytes.Equal(proposal.Hash(), digest) {
 			for _, req := range proposal.Reqs {
