@@ -91,7 +91,7 @@ func (s *Service) handlePrepare(prep *types.Prepare, nodeIdx uint32) (shouldDefe
 		return true, nil
 	}
 
-	digest := string(prep.ProposalDigest)
+	digest := string(prep.ProposalDigest[:8])
 
 	// initialize map if digest is seen for the first time
 	if s.roundState.prepares == nil {
@@ -136,7 +136,7 @@ func (s *Service) handleCommit(comm *types.Commit, nodeIdx uint32) (shouldDefer 
 		return true, nil
 	}
 
-	digest := string(comm.ProposalDigest)
+	digest := string(comm.ProposalDigest[:8])
 
 	// Initialize commit map if needed
 	if s.roundState.commits == nil {

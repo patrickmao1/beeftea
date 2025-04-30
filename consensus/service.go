@@ -190,7 +190,7 @@ func (s *Service) prepare() error {
 	}
 	s.prepares[key][s.MyIndex()] = true
 	s.prepared = true
-	log.Infof("round %d: sent Prepare for digest %s", s.round(), key)("round %d: sent Prepare for digest %s", s.round(), key)
+	log.Infof("round %d: sent Prepare for digest %s", s.round(), key)
 	return nil
 }
 
