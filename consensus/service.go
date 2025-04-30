@@ -175,7 +175,7 @@ func (s *Service) prepare() error {
 	defer s.mu.Unlock()
 
 	if s.minProposal == nil {
-		return errors.New("no minProposal to prepare")
+		return nil
 	}
 	if s.prepared {
 		return nil
