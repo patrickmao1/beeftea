@@ -3,13 +3,16 @@ package beeftea
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/patrickmao1/beeftea/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"strconv"
 	"sync"
 	"testing"
+	"time"
 )
 
 var urls = []string{
@@ -35,24 +38,55 @@ func init() {
 
 func TestPut(t *testing.T) {
 	res, err := clients[0].Put(context.Background(), &types.PutReq{
-		Id: "1",
+		Id: "2",
 		Kv: &types.KeyValue{
-			Key: "hello",
-			Val: "world",
+			Key: "hello2",
+			Val: "world2",
 		},
 	})
-	if err != nil {
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 	log.Infof("res %+v", res)
-}
 
-func TestGet(t *testing.T) {
-	key := "hello"
+	time.Sleep(8 * time.Second)
+
+	key := "hello2"
 	log.Infof("querying value for key \"%s\"", key)
 	val, err := getValue(key)
 	require.NoError(t, err)
 	log.Infof("val %s", val)
+	require.EqualValues(t, val, res)
+}
+
+func TestGet(t *testing.T) {
+	key := "hello2"
+	log.Infof("querying value for key \"%s\"", key)
+	val, err := getValue(key)
+	require.NoError(t, err)
+	log.Infof("val %s", val)
+}
+
+func TestPutMany(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		res, err := clients[0].Put(context.Background(), &types.PutReq{
+			Id: strconv.Itoa(i),
+			Kv: &types.KeyValue{
+				Key: fmt.Sprintf("hello%d", i),
+				Val: fmt.Sprintf("world%d", i),
+			},
+		})
+		require.NoError(t, err)
+		log.Infof("res %+v", res)
+	}
+	time.Sleep(8 * time.Second)
+	for i := 0; i < 10; i++ {
+		key := fmt.Sprintf("hello%d", i)
+		val := fmt.Sprintf("world%d", i)
+		log.Infof("querying value for key \"%s\"", key)
+		res, err := getValue(key)
+		require.NoError(t, err)
+		log.Infof("val %s", val)
+		require.EqualValues(t, val, res)
+	}
 }
 
 func getValue(key string) (string, error) {
@@ -83,7 +117,7 @@ func getValue(key string) (string, error) {
 		}
 	}
 
-	const quorum = 4
+	const quorum = 3
 	if maxCount < quorum {
 		return "", errors.New("no value has reached quorum")
 	}
