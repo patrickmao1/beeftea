@@ -78,7 +78,7 @@ func TestPutMany(t *testing.T) {
 		require.NoError(t, err)
 		log.Infof("res %+v", res)
 	}
-	time.Sleep(8 * time.Second)
+	time.Sleep(4 * time.Second)
 	for i := 0; i < 10; i++ {
 		key := fmt.Sprintf("hello%d", i)
 		val := fmt.Sprintf("world%d", i)

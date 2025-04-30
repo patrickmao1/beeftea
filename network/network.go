@@ -52,9 +52,9 @@ func (n *Network) Start() {
 
 // Broadcast sends the msg to all nodes in the network asynchronously.
 // NOTE: this function returns immediately without waiting for the other nodes to respond
-func (n *Network) Broadcast(msg *types.Message) {
+func (n *Network) Broadcast(msg *types.Message, indices ...int) {
 	log.Info("broadcasting message: ", msg)
-	n.doBroadcast(msg)
+	n.doBroadcast(msg, indices...)
 }
 
 func (n *Network) dialPeers() {
@@ -97,21 +97,27 @@ func (n *Network) ingest(e *types.Envelope) {
 	}()
 }
 
-func (n *Network) doBroadcast(msg *types.Message) {
+func (n *Network) doBroadcast(msg *types.Message, indices ...int) {
 	envelope := &types.Envelope{
 		Msg:       msg,
 		NodeIndex: n.idx,
 		Sig:       n.sign(msg),
 	}
-	for i, client := range n.clients {
+	if len(indices) == 0 {
+		indices = []int{0, 1, 2, 3, 4}
+	}
+	for _, idx := range indices {
+		client := n.clients[idx]
+		if idx > 4 {
+			panic("idx > 4")
+		}
 		go func() {
 			_, err := client.Send(context.Background(), envelope)
 			if err != nil {
-				log.Errorf("failed to send to peer %d: %s", i, err.Error())
+				log.Errorf("failed to send to peer %d: %s", idx, err.Error())
 			}
 		}()
 	}
-
 	return
 }
 
