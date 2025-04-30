@@ -20,6 +20,7 @@ import (
 // map for prepares and commits, it should have the digest as a key and the value is an array of the "from" field so
 // that some node can't continuously send prepare messages and get quorum by itself
 type roundState struct {
+	round             uint32
 	prevProposerProof []byte
 	seed              []byte
 	minProposal       *types.Proposal
@@ -91,7 +92,13 @@ func (s *Service) initRound() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	state := &roundState{}
+	currentRound := s.round()
+
+	state := &roundState{
+		round:    currentRound,
+		prepares: make(map[string]map[uint32]bool),
+		commits:  make(map[string]map[uint32]bool),
+	}
 	if s.roundState == nil {
 		initSeed := blake2b.Sum256([]byte("beeftea"))
 		state.prevProposerProof = initSeed[:]
@@ -103,8 +110,9 @@ func (s *Service) initRound() {
 			state.prevProposerProof = state.minProposal.ProposerProof
 		}
 	}
+	state.seed = computeRoundSeed(currentRound, state.prevProposerProof)
+	s.seed = state.seed
 	s.roundState = state
-	s.seed = computeRoundSeed(s.round(), s.prevProposerProof)
 	log.Infof("new round %d", s.round())
 }
 

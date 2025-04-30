@@ -79,10 +79,8 @@ func (s *Service) handlePrepare(prep *types.Prepare, nodeIdx uint32) (shouldDefe
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	currentRound := s.round()
-
-	if s.roundState == nil || currentRound != s.round() {
-		log.Warnf("Deferring Prepare: node is not in the correct round (%d)", currentRound)
+	if s.roundState == nil || s.roundState.round != s.round() {
+		log.Warnf("Deferring Prepare: not in the correct round (expected %d, got %d)", s.roundState.round, s.round())
 		return true, nil
 	}
 
@@ -124,10 +122,8 @@ func (s *Service) handleCommit(comm *types.Commit, nodeIdx uint32) (shouldDefer 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	currentRound := s.round()
-
-	if s.roundState == nil || currentRound != s.round() {
-		log.Warnf("Deferring Commit: node is not in the correct round (%d)", currentRound)
+	if s.roundState == nil || s.roundState.round != s.round() {
+		log.Warnf("Deferring Commit: not in the correct round (expected %d, got %d)", s.roundState.round, s.round())
 		return true, nil
 	}
 
