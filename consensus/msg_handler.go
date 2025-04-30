@@ -2,10 +2,12 @@ package consensus
 
 import (
 	"bytes"
+
 	"github.com/patrickmao1/beeftea/crypto"
 	"github.com/patrickmao1/beeftea/types"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/blake2b"
+	"google.golang.org/protobuf/proto"
 )
 
 func (s *Service) handleMessage(nodeIdx uint32, msg *types.Message) (shouldDefer bool) {

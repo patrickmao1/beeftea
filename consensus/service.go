@@ -158,6 +158,8 @@ func (s *Service) propose() {
 // prepare broadcasts a Prepare for the given proposal digest.
 // prepare implements phase 2: take the chosen minProposal, compute its digest, and broadcast a Prepare message.
 // It assumes s.minProposal is non-nil and has been set by handlePrepare.
+
+// prepare broadcasts a Prepare for s.minProposal and records it in the prepares map.
 func (s *Service) prepare() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -165,29 +167,34 @@ func (s *Service) prepare() error {
 	if s.minProposal == nil {
 		return errors.New("no minProposal to prepare")
 	}
+	if s.prepared {
+		return nil
+	}
 
-	// compute full hash of minProposal
+	// hash the proposal
 	raw, err := proto.Marshal(s.minProposal)
 	if err != nil {
 		return err
 	}
 	sum := blake2b.Sum256(raw)
-	digest := sum[:] // full 32-byte digest
+	digest := sum[:]
+	key := string(digest[:8])
 
-	// broadcast Prepare message carrying full digest
+	// broadcast Prepare message
 	pr := &types.Prepare{ProposalDigest: digest}
 	msg := &types.Message{Type: &types.Message_Prepare{Prepare: pr}}
-	s.Network.Broadcast(msg)
+	s.Broadcast(msg)
 
-	// track our local prepare for later commit
-	key := binary.BigEndian.Uint64(digest[:8])
-	s.prepares[string(key)][s.MyIndex()] = true
-	log.Infof("round %d: sent Prepare for digest %x", s.round(), key)
+	if s.prepares[key] == nil {
+		s.prepares[key] = make(map[uint32]bool)
+	}
+	s.prepares[key][s.MyIndex()] = true
 	s.prepared = true
+	log.Infof("round %d: sent Prepare for digest %s", s.round(), key)("round %d: sent Prepare for digest %s", s.round(), key)
 	return nil
 }
 
-// commit broadcasts a Commit for the given proposal digest.
+// commit broadcasts a Commit for the given digest and records it in the commits map.
 func (s *Service) commit(proposalDigest []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -195,15 +202,21 @@ func (s *Service) commit(proposalDigest []byte) error {
 	if len(proposalDigest) == 0 {
 		return errors.New("empty proposal digest")
 	}
+	key := string(proposalDigest[:8])
+	if s.committed {
+		return nil
+	}
 
 	cm := &types.Commit{ProposalDigest: proposalDigest}
 	msg := &types.Message{Type: &types.Message_Commit{Commit: cm}}
 	s.Broadcast(msg)
 
-	// track local commit
-	s.commits[string(key)][s.MyIndex()] = true
-	log.Infof("round %d: sent Commit for digest %x", s.round(), binary.BigEndian.Uint64(proposalDigest[:8]))
+	if s.commits[key] == nil {
+		s.commits[key] = make(map[uint32]bool)
+	}
+	s.commits[key][s.MyIndex()] = true
 	s.committed = true
+	log.Infof("round %d: sent Commit for digest %s", s.round(), key)
 	return nil
 }
 
