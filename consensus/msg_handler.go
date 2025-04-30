@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"fmt"
+
 	"github.com/patrickmao1/beeftea/crypto"
 	"github.com/patrickmao1/beeftea/types"
 	log "github.com/sirupsen/logrus"
@@ -109,7 +110,6 @@ func (s *Service) handlePrepare(prep *types.Prepare, nodeIdx uint32) (shouldDefe
 				log.Errorf("commit failed: digest %x, err %s", prep.ProposalDigest, err.Error())
 			}
 		}()
-		s.roundState.committed = true
 	}
 	return false, nil
 }
