@@ -37,7 +37,7 @@ func init() {
 }
 
 func TestPut(t *testing.T) {
-	num := "13"
+	num := "1"
 	res, err := clients[0].Put(context.Background(), &types.PutReq{
 		Id: num,
 		Kv: &types.KeyValue{
@@ -58,8 +58,20 @@ func TestPut(t *testing.T) {
 	require.EqualValues(t, "world"+num, val)
 }
 
+func TestPutMaliciousMode(t *testing.T) {
+	res, err := clients[0].Put(context.Background(), &types.PutReq{
+		Id: "1",
+		Kv: &types.KeyValue{
+			Key: "maliciousMode",
+			Val: "0",
+		},
+	})
+	require.NoError(t, err)
+	log.Infof("res %+v", res)
+}
+
 func TestGet(t *testing.T) {
-	key := "hello11"
+	key := "hello1"
 	log.Infof("querying value for key \"%s\"", key)
 	val, err := getValue(key)
 	require.NoError(t, err)
