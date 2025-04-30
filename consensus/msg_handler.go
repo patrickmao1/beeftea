@@ -100,7 +100,8 @@ func (s *Service) handlePrepare(prep *types.Prepare, nodeIdx uint32) (shouldDefe
 
 	// Record the prepare vote
 	s.roundState.prepares[digest][nodeIdx] = true
-	log.Infof("Accepted Prepare from node %d for digest %x", nodeIdx, prep.ProposalDigest)
+	log.Infof("Accepted Prepare from node %d for digest %x, current count %d",
+		nodeIdx, prep.ProposalDigest, len(s.roundState.prepares[digest]))
 
 	if len(s.roundState.prepares[digest]) >= 3 && !s.roundState.committed {
 		log.Infof("Prepare quorum reached for digest %x, broadcasting Commit", prep.ProposalDigest)
