@@ -48,7 +48,7 @@ func TestPut(t *testing.T) {
 	require.NoError(t, err)
 	log.Infof("res %+v", res)
 
-	time.Sleep(4 * time.Second)
+	time.Sleep(6 * time.Second)
 
 	key := "hello" + num
 	log.Infof("querying value for key \"%s\"", key)
@@ -63,7 +63,10 @@ func TestPutMaliciousMode(t *testing.T) {
 		Id: "1",
 		Kv: &types.KeyValue{
 			Key: "maliciousMode",
-			Val: "0",
+
+			//Val: "wrongPrepareMessage",
+			Val: "fourWrongBroadcasts",
+			//Val: "commitWrongValue",
 		},
 	})
 	require.NoError(t, err)

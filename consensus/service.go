@@ -196,14 +196,12 @@ func (s *Service) prepare() error {
 			s.Broadcast(msg)
 		case "fourWrongBroadcasts":
 			fakeDigest := []byte("abcdefg12345678")
-			log.Infof("Sending malicious prepare!!!!!! fakeDigest %x", fakeDigest)
 			pr := &types.Prepare{ProposalDigest: fakeDigest}
 			msg := &types.Message{Type: &types.Message_Prepare{Prepare: pr}}
-			s.Broadcast(msg)
-			s.Broadcast(msg)
-			s.Broadcast(msg)
-			s.Broadcast(msg)
-
+			for i := 0; i < 4; i++ {
+				log.Infof("Sending malicious prepare!!!!!! fakeDigest %x", fakeDigest)
+				s.Broadcast(msg)
+			}
 		default:
 			//normal case:
 			// broadcast Prepare message
@@ -261,7 +259,9 @@ func (s *Service) commitLocal(digest []byte) {
 			for _, req := range proposal.Reqs {
 				//malicious case:
 				if s.MyIndex() == 4 && s.db["maliciousMode"] == "commitWrongValue" {
-					s.db[req.Kv.Key] = "some evil value!!!"
+					val := "some evil value!!!"
+					log.Infof("Committing malicious value: \"%s\"", val)
+					s.db[req.Kv.Key] = val
 				} else {
 					s.db[req.Kv.Key] = req.Kv.Val
 					delete(s.reqs, req.Id)
