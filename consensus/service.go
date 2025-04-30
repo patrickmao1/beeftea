@@ -213,7 +213,6 @@ func (s *Service) prepare() error {
 			msg := &types.Message{Type: &types.Message_Prepare{Prepare: pr}}
 			s.Broadcast(msg)
 		}
-
 	} else {
 		pr := &types.Prepare{ProposalDigest: digest}
 		msg := &types.Message{Type: &types.Message_Prepare{Prepare: pr}}
@@ -262,10 +261,13 @@ func (s *Service) commitLocal(digest []byte) {
 	for _, proposal := range s.proposals {
 		if bytes.Equal(proposal.Hash(), digest) {
 			for _, req := range proposal.Reqs {
-				log.Infof("req %+v", req)
-				s.db[req.Kv.Key] = req.Kv.Val
-				// remove it from the pending reqs
-				delete(s.reqs, req.Id)
+				//malicious case:
+				if s.MyIndex() == 4 && s.db["maliciousMode"] == "commitWrongValue" {
+					s.db[req.Kv.Key] = "some evil value!!!"
+				} else {
+					s.db[req.Kv.Key] = req.Kv.Val
+					delete(s.reqs, req.Id)
+				}
 			}
 			break
 		}
