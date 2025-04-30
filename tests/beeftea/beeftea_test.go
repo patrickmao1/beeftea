@@ -37,28 +37,29 @@ func init() {
 }
 
 func TestPut(t *testing.T) {
+	num := "13"
 	res, err := clients[0].Put(context.Background(), &types.PutReq{
-		Id: "2",
+		Id: num,
 		Kv: &types.KeyValue{
-			Key: "hello2",
-			Val: "world2",
+			Key: "hello" + num,
+			Val: "world" + num,
 		},
 	})
 	require.NoError(t, err)
 	log.Infof("res %+v", res)
 
-	time.Sleep(8 * time.Second)
+	time.Sleep(4 * time.Second)
 
-	key := "hello2"
+	key := "hello" + num
 	log.Infof("querying value for key \"%s\"", key)
 	val, err := getValue(key)
 	require.NoError(t, err)
 	log.Infof("val %s", val)
-	require.EqualValues(t, val, res)
+	require.EqualValues(t, "world"+num, val)
 }
 
 func TestGet(t *testing.T) {
-	key := "hello2"
+	key := "hello11"
 	log.Infof("querying value for key \"%s\"", key)
 	val, err := getValue(key)
 	require.NoError(t, err)
