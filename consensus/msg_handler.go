@@ -39,7 +39,7 @@ func (s *Service) handleProposal(proposal *types.Proposal, nodeIdx uint32) (shou
 	pubkey := &s.Peers[proposal.ProposerIndex].Key.PublicKey
 	pass := crypto.Verify(pubkey, s.seed, proposal.ProposerProof)
 	if !pass {
-		log.Warnf("proposal from node %d verify fail", nodeIdx)
+		log.Warnf("proposal from node %d verify fail", proposal.ProposerIndex)
 		// verification failed maybe because I'm not in the same round (due to a bit of desync)
 		// as the proposer, retry processing this proposal later.
 		return true, nil
