@@ -106,11 +106,10 @@ func (s *Service) initRound() {
 		if s.minProposal == nil {
 			state.prevProposerProof = s.prevProposerProof
 		} else {
-			state.prevProposerProof = state.minProposal.ProposerProof
+			state.prevProposerProof = s.minProposal.ProposerProof
 		}
 	}
 	state.seed = computeRoundSeed(currentRound, state.prevProposerProof)
-	s.seed = state.seed
 	s.roundState = state
 	log.Infof("new round %d", s.round())
 }
