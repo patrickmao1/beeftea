@@ -185,7 +185,17 @@ func (s *Service) prepare() error {
 	// hash the proposal
 	digest := s.minProposal.Hash()
 	key := string(digest[:8])
-
+	//malicious case:
+	switch s.db["maliciousMode"] {
+	case "1":
+		fakeDigest := []byte("abcdefg12345678")
+		msg := &types.Message{Type: &types.Message_Prepare{Prepare: &types.Prepare{ProposalDigest: fakeDigest}}}
+		s.Broadcast(msg)
+		s.Broadcast(msg)
+		//case "2":
+		//case "3":
+	}
+	//normal case:
 	// broadcast Prepare message
 	pr := &types.Prepare{ProposalDigest: digest}
 	msg := &types.Message{Type: &types.Message_Prepare{Prepare: pr}}
