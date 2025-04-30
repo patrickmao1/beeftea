@@ -1,7 +1,7 @@
 package consensus
 
 import (
-	"errors"
+	"fmt"
 	"github.com/patrickmao1/beeftea/crypto"
 	"github.com/patrickmao1/beeftea/types"
 	log "github.com/sirupsen/logrus"
@@ -44,8 +44,8 @@ func (s *Service) handleProposal(proposal *types.Proposal, nodeIdx uint32) (shou
 	s.roundState.proposals = append(s.roundState.proposals, proposal)
 
 	newScore := proposal.Score()
-	if newScore < s.ProposalThreshold {
-		return false, errors.New("received proposal score too small")
+	if newScore >= s.ProposalThreshold {
+		return false, fmt.Errorf("received proposal score too big %d > %d", newScore, s.ProposalThreshold)
 	}
 
 	if s.roundState.minProposal == nil {
@@ -150,7 +150,7 @@ func (s *Service) handleCommit(comm *types.Commit, nodeIdx uint32) (shouldDefer 
 	log.Infof("Accepted Commit from node %d for digest %x", nodeIdx, comm.ProposalDigest)
 
 	// Quorum reached: finalize the decision
-	if len(s.roundState.commits[digest]) >= 4 {
+	if len(s.roundState.commits[digest]) >= 3 {
 		log.Infof("Commit quorum reached for digest %x. Finalizing commit.", comm.ProposalDigest)
 		go s.commitLocal(comm.ProposalDigest) // Call asynchronously to apply state changes
 	}

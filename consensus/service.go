@@ -49,6 +49,7 @@ func NewService(config *types.Config) *Service {
 		Config: config,
 		reqs:   make(map[string]*types.PutReq),
 	}
+	log.Infof("config %+v", config)
 	s.Network = network.NewNetwork(
 		config.MyIndex(),
 		config.MyKey(),
@@ -80,7 +81,10 @@ func (s *Service) Start() {
 		// Blocks until the proposal phase has ended
 		<-proposalPhaseEnd
 
-		s.prepare()
+		err := s.prepare()
+		if err != nil {
+			log.Error(err)
+		}
 
 		// Refresh round timer
 		timer.Reset(time.Until(s.roundEndTime()))

@@ -53,6 +53,7 @@ func (n *Network) Start() {
 // Broadcast sends the msg to all nodes in the network asynchronously.
 // NOTE: this function returns immediately without waiting for the other nodes to respond
 func (n *Network) Broadcast(msg *types.Message) {
+	log.Info("broadcasting message: ", msg)
 	n.doBroadcast(msg)
 }
 
