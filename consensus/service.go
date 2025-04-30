@@ -188,13 +188,23 @@ func (s *Service) prepare() error {
 	//malicious case:
 	if s.MyIndex() == 4 {
 		switch s.db["maliciousMode"] {
-		case "1":
+		case "wrongPrepareMessage": //wrongprepare message
 			fakeDigest := []byte("abcdefg12345678")
 			log.Infof("Sending malicious prepare!!!!!! fakeDigest %x", fakeDigest)
 			pr := &types.Prepare{ProposalDigest: fakeDigest}
 			msg := &types.Message{Type: &types.Message_Prepare{Prepare: pr}}
 			s.Broadcast(msg)
-		case "2":
+		case "twoWrongBroadcasts":
+			fakeDigest := []byte("abcdefg12345678")
+			log.Infof("Sending malicious prepare!!!!!! fakeDigest %x", fakeDigest)
+			pr := &types.Prepare{ProposalDigest: fakeDigest}
+			msg := &types.Message{Type: &types.Message_Prepare{Prepare: pr}}
+			s.Broadcast(msg)
+			fakeDigestTwo := []byte("abcdefg12345679")
+			log.Infof("Sending malicious prepare!!!!!! fakeDigest %x", fakeDigest)
+			prTwo := &types.Prepare{ProposalDigest: fakeDigestTwo}
+			msgTwo := &types.Message{Type: &types.Message_Prepare{Prepare: prTwo}}
+			s.Broadcast(msgTwo)
 
 		default:
 			//normal case:
