@@ -2,17 +2,19 @@ package consensus
 
 import (
 	"bytes"
+
 	"github.com/patrickmao1/beeftea/crypto"
 	"github.com/patrickmao1/beeftea/types"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/blake2b"
+	"google.golang.org/protobuf/proto"
 )
 
 func (s *Service) handleMessage(nodeIdx uint32, msg *types.Message) (shouldDefer bool) {
 	var err error
 	switch msg.Type.(type) {
 	case *types.Message_Proposal:
-		shouldDefer, err = s.handleProposal(msg.GetProposal())
+		shouldDefer, err = s.handleProposal(msg.GetProposal(), nodeIdx)
 	case *types.Message_Prepare:
 		shouldDefer, err = s.handlePrepare(msg.GetPrepare(), nodeIdx)
 	case *types.Message_Commit:
@@ -27,7 +29,7 @@ func (s *Service) handleMessage(nodeIdx uint32, msg *types.Message) (shouldDefer
 }
 
 // this method is called when the message is a proposal
-func (s *Service) handleProposal(proposal *types.Proposal) (shouldDefer bool, err error) {
+func (s *Service) handleProposal(proposal *types.Proposal, nodeIdx uint32) (shouldDefer bool, err error) {
 	// collect all proposals, then once the timer ends, call prepare with the minimum
 	// actually keep all proposals for later, edit roundstate so that it stores all proposals
 
@@ -42,14 +44,6 @@ func (s *Service) handleProposal(proposal *types.Proposal) (shouldDefer bool, er
 		// as the proposer, retry processing this proposal later.
 		return true, nil
 	}
-
-	// Make sure we are in the right round
-	if proposal.Height != s.roundState.height || proposal.Round != s.roundState.round {
-		log.Warnf("Received proposal for wrong round: got (h=%d, r=%d), expected (h=%d, r=%d)",
-			proposal.Height, proposal.Round, s.roundState.height, s.roundState.round)
-		return true, nil // Defer it: maybe we haven't advanced to this round yet
-	}
-
 	s.roundState.proposals = append(s.roundState.proposals, proposal)
 
 	if s.roundState.minProposal == nil {
@@ -117,7 +111,7 @@ func (s *Service) handlePrepare(prep *types.Prepare, nodeIdx uint32) (shouldDefe
 	s.roundState.prepares[digest][nodeIdx] = true
 	log.Infof("Accepted Prepare from node %d for digest %x", nodeIdx, prep.ProposalDigest)
 
-	if len(s.roundState.prepares[digest]) > s.f*2 && !s.roundState.committed {
+	if len(s.roundState.prepares[digest]) >= 3 && !s.roundState.committed {
 		log.Infof("Prepare quorum reached for digest %x, broadcasting Commit", prep.ProposalDigest)
 		go s.commit(prep.ProposalDigest) // Call asynchronously to avoid deadlock
 		s.roundState.committed = true
@@ -127,5 +121,45 @@ func (s *Service) handlePrepare(prep *types.Prepare, nodeIdx uint32) (shouldDefe
 
 // this method is called when the message is a commit
 func (s *Service) handleCommit(comm *types.Commit, nodeIdx uint32) (shouldDefer bool, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	currentRound := s.round()
+
+	if s.roundState == nil || currentRound != s.round() {
+		log.Warnf("Deferring Commit: node is not in the correct round (%d)", currentRound)
+		return true, nil
+	}
+
+	if !s.roundState.committed {
+		log.Warnf("Deferring Commit: haven't committed yet, can't accept others' commits")
+		return true, nil
+	}
+
+	digest := string(comm.ProposalDigest)
+
+	// Initialize commit map if needed
+	if s.roundState.commits == nil {
+		s.roundState.commits = make(map[string]map[uint32]bool)
+	}
+	if _, exists := s.roundState.commits[digest]; !exists {
+		s.roundState.commits[digest] = make(map[uint32]bool)
+	}
+
+	// Prevent duplicate votes from the same node
+	if s.roundState.commits[digest][nodeIdx] {
+		log.Warnf("Duplicate Commit received from node %d for digest %x", nodeIdx, comm.ProposalDigest)
+		return false, nil
+	}
+
+	// Record the vote
+	s.roundState.commits[digest][nodeIdx] = true
+	log.Infof("Accepted Commit from node %d for digest %x", nodeIdx, comm.ProposalDigest)
+
+	// Quorum reached: finalize the decision
+	if len(s.roundState.commits[digest]) >= 3 {
+		log.Infof("Commit quorum reached for digest %x. Finalizing commit.", comm.ProposalDigest)
+		go s.commitLocal(comm.ProposalDigest) // Call asynchronously to apply state changes
+	}
 	return false, nil
 }
