@@ -1,16 +1,21 @@
 package consensus
 
 import (
+	"bytes"
 	"encoding/binary"
+	"errors"
+	"slices"
+	"sync"
+	"time"
+
 	"github.com/patrickmao1/beeftea/crypto"
 	"github.com/patrickmao1/beeftea/network"
 	"github.com/patrickmao1/beeftea/types"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/blake2b"
-	"slices"
-	"sync"
-	"time"
+	"google.golang.org/protobuf/proto"
 )
+
 // list of the proposals, in commitlocal check individually if the digests match, when they do then putReq
 // map for prepares and commits, it should have the digest as a key and the value is an array of the "from" field so
 // that some node can't continuously send prepare messages and get quorum by itself
@@ -154,83 +159,81 @@ func (s *Service) propose() {
 // prepare implements phase 2: take the chosen minProposal, compute its digest, and broadcast a Prepare message.
 // It assumes s.minProposal is non-nil and has been set by handlePrepare.
 func (s *Service) prepare() error {
-    s.mu.Lock()
-    defer s.mu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-    if s.RoundState.minProposal == nil {
-        return errors.New("no minProposal to prepare")
-    }
+	if s.minProposal == nil {
+		return errors.New("no minProposal to prepare")
+	}
 
-    // compute full hash of minProposal
-    raw, err := proto.Marshal(s.RoundState.minProposal)
-    if err != nil {
-        return err
-    }
-    sum := blake2b.Sum256(raw)
-    digest := sum[:] // full 32-byte digest
+	// compute full hash of minProposal
+	raw, err := proto.Marshal(s.minProposal)
+	if err != nil {
+		return err
+	}
+	sum := blake2b.Sum256(raw)
+	digest := sum[:] // full 32-byte digest
 
-    // broadcast Prepare message carrying full digest
-    pr := &types.Prepare{ProposalDigest: digest}
-    msg := &types.Message{Type: &types.Message_Prepare{Prepare: pr}}
-    s.Network.Broadcast(msg)
+	// broadcast Prepare message carrying full digest
+	pr := &types.Prepare{ProposalDigest: digest}
+	msg := &types.Message{Type: &types.Message_Prepare{Prepare: pr}}
+	s.Network.Broadcast(msg)
 
-    // track our local prepare for later commit
-    s.RoundState.prepares = append(s.RoundState.prepares, pr)
-    key := binary.BigEndian.Uint64(digest[:8])
-    log.Infof("round %d: sent Prepare for digest %x", s.round(), key)
-	s.RoundState.prepared := True
-    return nil
+	// track our local prepare for later commit
+	key := binary.BigEndian.Uint64(digest[:8])
+	s.prepares[string(key)][s.MyIndex()] = true
+	log.Infof("round %d: sent Prepare for digest %x", s.round(), key)
+	s.prepared = true
+	return nil
 }
-
 
 // commit broadcasts a Commit for the given proposal digest.
 func (s *Service) commit(proposalDigest []byte) error {
-    s.mu.Lock()
-    defer s.mu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-    if len(proposalDigest) == 0 {
-        return errors.New("empty proposal digest")
-    }
+	if len(proposalDigest) == 0 {
+		return errors.New("empty proposal digest")
+	}
 
-    cm := &types.Commit{ProposalDigest: proposalDigest}
-    msg := &types.Message{Type: &types.Message_Commit{Commit: cm}}
-    s.Broadcast(msg)
+	cm := &types.Commit{ProposalDigest: proposalDigest}
+	msg := &types.Message{Type: &types.Message_Commit{Commit: cm}}
+	s.Broadcast(msg)
 
-    // track local commit
-    s.RoundState.commits = append(s.RoundState.commits, cm)
-    log.Infof("round %d: sent Commit for digest %x", s.round(), binary.BigEndian.Uint64(proposalDigest[:8]))
-	committed := True
-    return nil
+	// track local commit
+	s.commits[string(key)][s.MyIndex()] = true
+	log.Infof("round %d: sent Commit for digest %x", s.round(), binary.BigEndian.Uint64(proposalDigest[:8]))
+	s.committed = true
+	return nil
 }
 
 func (s *Service) commitLocal(digest []byte) {
-    for _, proposal := range s.roundState.proposals {
-        if bytes.Equal(HashProposal(proposal), digest) {
-            for _, req := range proposal.Reqs {
-                s.kvStore[req.Key] = req.Value
+
+	for _, proposal := range s.proposals {
+		if bytes.Equal(HashProposal(proposal), digest) {
+			for _, req := range proposal.Reqs {
+				s.db[req.Kv.Key] = req.Kv.Val
 				// remove it from the pending reqs
 				delete(s.reqs, req.Id)
-            }
-            break
-        }
-		
+			}
+			break
+		}
 
-    }
+	}
 }
+
 // reset clears all round‐specific state.
 func (s *Service) reset() {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    // keep prevProposerProof; new seed will be set in initRound
-    s.RoundState.seed = nil
-    s.RoundState.minProposal = nil
-    s.RoundState.proposals = nil           // drop all collected proposals
-    s.RoundState.prepares = nil            // drop prepare records
-    s.RoundState.commits = nil             // drop commit records
-    s.RoundState.prepared = false          // clear flags
-    s.RoundState.committed = false
-    s.RoundState.inMsgs = make(map[string]*types.Message)
-    s.RoundState.outMsgs = make(map[string]*types.Message)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// keep prevProposerProof; new seed will be set in initRound
+	s.seed = nil
+	s.minProposal = nil
+	s.proposals = nil  // drop all collected proposals
+	s.prepares = nil   // drop prepare records
+	s.commits = nil    // drop commit records
+	s.prepared = false // clear flags
+	s.committed = false
 }
 
 func (s *Service) round() uint32 {

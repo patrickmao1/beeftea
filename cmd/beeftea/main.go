@@ -1,11 +1,12 @@
 package main
 
 import (
+	"math"
+	"time"
+
 	"github.com/patrickmao1/beeftea/consensus"
 	"github.com/patrickmao1/beeftea/crypto"
 	"github.com/patrickmao1/beeftea/types"
-	"math"
-	"time"
 )
 
 func main() {
@@ -22,7 +23,7 @@ func main() {
 			{URL: "172.16.0.5:9090", Key: crypto.UnmarshalHex("376bb541ff3c913ea6b07cc0c405b991d354e140b4c3b8908884b84ef1475984")},
 		},
 	}
-	F: 					(unit32(len(peersList)+1)-1) /3, //this solves for f using pbft f = n-1/3
+
 	s := consensus.NewService(config)
 	s.Start()
 }
