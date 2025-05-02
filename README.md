@@ -57,6 +57,6 @@ malicious node specific things:
 
 ## Who did what
 
-Adarsh: PBFT related code: service states, message handlers for processing incoming Proposal, Prepare, and Commit messages
-Anjali: PBFT related code: service states, processor functions for proposing, preparing, committing and executing proposals.
-Patrick: overall structure of the program, peripherals (tests and docker setups), VRF proposing, signatures, network layer implementation.
+- Adarsh: PBFT related code: service states, message handlers for processing incoming Proposal, Prepare, and Commit messages
+- Anjali: PBFT related code: service states, processor functions for proposing, preparing, committing and executing proposals.
+- Patrick: overall structure of the program, peripherals (tests and docker setups), VRF proposing, signatures, network layer implementation.
