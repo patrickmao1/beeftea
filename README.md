@@ -51,9 +51,9 @@ our key-value store in distributed tests on a 5-node docker compose cluster. One
 malicious. Malicious mode can be turned on by setting a pre-defined key "maliciousMode" to the following cases to make the
 malicious node specific things:
 
-"wrongPrepareMessage" - prepare a different proposal than what's supposed to be proposed.
-"fourWrongBroadcasts" - prepare a different proposal 4 times (in an attempt to make that proposal reach quorum)
-"commitWrongValue" - follow the consensus protocol until the very end, then save a wrong value to the key.
+- "wrongPrepareMessage": prepare a different proposal than what's supposed to be proposed.
+- "fourWrongBroadcasts": prepare a different proposal 4 times (in an attempt to make that proposal reach quorum)
+- "commitWrongValue": follow the consensus protocol until the very end, then save a wrong value to the key.
 
 ## Who did what
 
